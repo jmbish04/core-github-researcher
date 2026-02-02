@@ -1,0 +1,23 @@
+{
+  "name": "core-github-researcher",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-02",
+  "vars": {
+    "GITHUB_TOKEN": "",
+    "OPENAI_API_KEY": ""
+  },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CODE_RESEARCH_AGENT",
+        "class_name": "CodeResearchAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["CodeResearchAgent"]
+    }
+  ]
+}
