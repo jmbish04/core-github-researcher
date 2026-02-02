@@ -71,70 +71,56 @@ Search all platforms simultaneously for comprehensive results.
 - Results are cached for 1 hour
 - Note: Executes all searches in parallel for faster response
 
-## Requirements
+## Cloudflare Workers Setup
+
+### Prerequisites
 
 - Node.js >= 20.11.0
 - npm >= 10.0.0
-- Optional: GitHub personal access token for higher API rate limits
+- Cloudflare Wrangler CLI (`npm install -g wrangler`)
+- Cloudflare account with Workers + Durable Objects enabled
 
-## Installation
-
-### Installing via Smithery
-
-To install Code Research Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@nahmanmate/code-research-mcp-server):
+### Install Dependencies
 
 ```bash
-npx -y @smithery/cli install @nahmanmate/code-research-mcp-server --client claude
-```
-
-### Manual Installation
-1. Clone the repository and install dependencies:
-```bash
-git clone https://github.com/nahmanmate/code-research-mcp-server.git
-cd code-research-server
 npm install
 ```
 
-2. Build the server:
+### Local Development
+
+1. Create a `.dev.vars` file for local secrets:
+
 ```bash
-npm run build
+GITHUB_TOKEN=your_github_token
+OPENAI_API_KEY=your_openai_key
 ```
 
-3. Configure MCP Settings:
+2. Start the Worker:
 
-Add the server configuration to your MCP settings file:
-
-- VSCode: `~/.vscode-server/data/User/globalStorage/rooveterinaryinc.roo-cline/settings/cline_mcp_settings.json`
-- Claude Desktop:
-  - MacOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
-  - Windows: `%APPDATA%/Claude/claude_desktop_config.json`
-
-```json
-{
-  "mcpServers": {
-    "code-research": {
-      "command": "node",
-      "args": ["/absolute/path/to/code-research-mcp-server/build/index.js"],
-      "env": {
-        "GITHUB_TOKEN": "your_github_token"  // Optional: Prevents rate limiting
-      },
-      "disabled": false,
-      "alwaysAllow": []
-    }
-  }
-}
+```bash
+wrangler dev
 ```
 
-Note: Replace `/absolute/path/to` with the actual path where you cloned the repository.
+### Secrets & Environment Variables
+
+Set production secrets with Wrangler:
+
+```bash
+wrangler secret put GITHUB_TOKEN
+wrangler secret put OPENAI_API_KEY
+```
+
+### Deploy
+
+```bash
+wrangler deploy
+```
+
+### Durable Objects
+
+The Worker uses a `CodeResearchAgent` Durable Object binding (`CODE_RESEARCH_AGENT`) for agent state.
 
 ## Development
-
-### Running in Development Mode
-
-For development with auto-rebuild on changes:
-```bash
-npm run watch
-```
 
 ### Generated Worker Types
 
@@ -144,11 +130,6 @@ npm run types
 ```
 
 This uses `.dev.vars` to pick up secrets for type generation and writes `worker-configuration.d.ts`.
-
-### Agents
-
-The Worker routes `/agents/*` requests through the Cloudflare Agents SDK.
-Set `OPENAI_API_KEY` in `.dev.vars` before running locally.
 
 ### Error Handling
 
