@@ -3,14 +3,22 @@ import { swaggerUI } from '@hono/swagger-ui';
 import { upgradeWebSocket } from 'hono/cloudflare-workers';
 import { handleMcpWebSocket, WebSocketTransport } from './mcp/server.js';
 import { routeAgentRequest } from 'agents';
-import { CodeResearchAgent } from './agents/index.js';
+import { CodeResearchAgent, ResearchAgent } from './agents/index.js';
 import { registerSearchRoutes } from './routes/search.js';
+import { registerResearchRoutes } from './routes/research.js';
 import { cacheNote, type ProvidersEnv } from './lib/providers.js';
+
+// Export workflow and agents for Cloudflare
+export { ResearchWorkflow } from './workflows/research-workflow.js';
+export { CodeResearchAgent, ResearchAgent } from './agents/index.js';
 
 type Env = {
   Bindings: Cloudflare.Env & ProvidersEnv & {
     OPENAI_API_KEY?: string;
     CODE_RESEARCH_AGENT: DurableObjectNamespace<CodeResearchAgent>;
+    RESEARCH_AGENT: DurableObjectNamespace<ResearchAgent>;
+    DB: D1Database;
+    ASSETS?: Fetcher;
   };
 };
 
@@ -26,6 +34,11 @@ const searchApi = new OpenAPIHono<Env>();
 
 registerSearchRoutes(searchApi);
 app.route('/api/search', searchApi);
+
+// Research API routes
+const researchApi = new OpenAPIHono<Env>();
+registerResearchRoutes(researchApi);
+app.route('/api/research', researchApi);
 
 app.doc('/openapi.json', {
   openapi: '3.1.0',
@@ -91,6 +104,14 @@ app.all('/agents/*', async (c) => {
     return response;
   }
   return c.text('Agent not found', 404);
+});
+
+// Serve frontend assets if ASSETS binding is available
+app.all('*', async (c) => {
+  if (c.env.ASSETS) {
+    return c.env.ASSETS.fetch(c.req.raw);
+  }
+  return c.text('Not found', 404);
 });
 
 export default app;

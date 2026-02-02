@@ -1,0 +1,238 @@
+---
+import Layout from '../layouts/Layout.astro';
+import NewTaskInput from '../components/NewTaskInput.astro';
+import TaskCard from '../components/TaskCard.astro';
+import HistoryTable from '../components/HistoryTable.astro';
+import '../styles/globals.css';
+
+// For static build, we'll show placeholder UI that gets hydrated via client-side JS
+// In a real deployment, this would fetch from the API
+---
+
+<Layout title="GitHub Research Agent - Dashboard">
+  <div class="container mx-auto px-4 py-8 max-w-6xl">
+    <div class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight">Research Dashboard</h1>
+      <p class="text-muted-foreground mt-2">
+        Search GitHub repositories and get AI-powered analysis with human-in-the-loop approval.
+      </p>
+    </div>
+    
+    <div class="grid gap-8 lg:grid-cols-3">
+      <div class="lg:col-span-1">
+        <NewTaskInput />
+      </div>
+      
+      <div class="lg:col-span-2">
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">Pending Approvals</h2>
+            <button id="refresh-btn" class="btn btn-outline btn-sm">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+                <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                <path d="M3 3v5h5"/>
+                <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
+                <path d="M16 16h5v5"/>
+              </svg>
+              Refresh
+            </button>
+          </div>
+          
+          <div id="pending-tasks" class="space-y-3">
+            <div class="text-center py-8 text-muted-foreground">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-muted-foreground/50">
+                <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+                <path d="m9 12 2 2 4-4"/>
+              </svg>
+              <p>No tasks waiting for approval</p>
+              <p class="text-xs mt-1">Start a new research to see tasks here</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="mt-8">
+      <h2 class="text-lg font-semibold mb-4">Research History</h2>
+      <div id="history-container">
+        <div class="rounded-md border">
+          <table class="w-full">
+            <thead>
+              <tr class="border-b border-border bg-muted/50">
+                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Query</th>
+                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Created</th>
+                <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody">
+              <tr>
+                <td colspan="4" class="h-24 text-center text-muted-foreground">
+                  Loading research history...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  const pendingContainer = document.getElementById('pending-tasks');
+  const historyTbody = document.getElementById('history-tbody');
+  const refreshBtn = document.getElementById('refresh-btn');
+  
+  interface Task {
+    id: string;
+    query: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+  
+  interface PendingApproval {
+    taskId: string;
+    query: string;
+    candidates: Array<{
+      id: string;
+      fullName: string;
+      url: string;
+      stars: number;
+      description: string;
+    }>;
+  }
+  
+  const getStatusBadgeClass = (status: string): string => {
+    const classes: Record<string, string> = {
+      pending: 'badge-pending',
+      searching: 'badge-searching',
+      waiting_for_approval: 'badge-waiting',
+      analyzing: 'badge-analyzing',
+      completed: 'badge-completed',
+      rejected: 'badge-rejected',
+      timed_out: 'badge-timed_out',
+    };
+    return classes[status] || 'badge-pending';
+  };
+  
+  const formatDate = (dateStr: string): string => {
+    try {
+      return new Date(dateStr).toLocaleDateString();
+    } catch {
+      return dateStr;
+    }
+  };
+  
+  async function loadTasks() {
+    try {
+      const [tasksRes, pendingRes] = await Promise.all([
+        fetch('/api/research/tasks'),
+        fetch('/api/research/pending'),
+      ]);
+      
+      if (tasksRes.ok) {
+        const tasks: Task[] = await tasksRes.json();
+        renderHistory(tasks);
+      }
+      
+      if (pendingRes.ok) {
+        const pending: PendingApproval[] = await pendingRes.json();
+        renderPending(pending);
+      }
+    } catch (error) {
+      console.error('Failed to load tasks:', error);
+    }
+  }
+  
+  function renderHistory(tasks: Task[]) {
+    if (!historyTbody) return;
+    
+    if (tasks.length === 0) {
+      historyTbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="h-24 text-center text-muted-foreground">
+            No research tasks yet. Start a new research above!
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    historyTbody.innerHTML = tasks.map(task => `
+      <tr class="border-b border-border transition-colors hover:bg-muted/50">
+        <td class="p-4 align-middle font-medium">${escapeHtml(task.query)}</td>
+        <td class="p-4 align-middle">
+          <span class="badge ${getStatusBadgeClass(task.status)}">
+            ${task.status.replace(/_/g, ' ')}
+          </span>
+        </td>
+        <td class="p-4 align-middle text-muted-foreground">${formatDate(task.createdAt)}</td>
+        <td class="p-4 align-middle">
+          ${task.status === 'waiting_for_approval' 
+            ? `<a href="/approve/${task.id}" class="btn btn-primary btn-sm">Approve</a>`
+            : task.status === 'completed'
+            ? `<a href="/task/${task.id}" class="btn btn-secondary btn-sm">View</a>`
+            : ''}
+        </td>
+      </tr>
+    `).join('');
+  }
+  
+  function renderPending(pending: PendingApproval[]) {
+    if (!pendingContainer) return;
+    
+    if (pending.length === 0) {
+      pendingContainer.innerHTML = `
+        <div class="text-center py-8 text-muted-foreground">
+          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-muted-foreground/50">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+          <p>No tasks waiting for approval</p>
+          <p class="text-xs mt-1">Start a new research to see tasks here</p>
+        </div>
+      `;
+      return;
+    }
+    
+    pendingContainer.innerHTML = pending.map(p => `
+      <div class="card p-4 hover:border-primary/50 transition-colors">
+        <div class="flex items-start justify-between gap-4">
+          <div class="flex-1 min-w-0">
+            <h3 class="font-semibold text-foreground truncate">${escapeHtml(p.query)}</h3>
+            <p class="text-xs text-muted-foreground mt-1">
+              ${p.candidates.length} repositories found
+            </p>
+          </div>
+          <span class="badge badge-waiting">
+            Waiting for Approval
+          </span>
+        </div>
+        <div class="mt-3 pt-3 border-t border-border">
+          <a href="/approve/${p.taskId}" class="btn btn-primary btn-sm w-full">
+            Review & Approve
+          </a>
+        </div>
+      </div>
+    `).join('');
+  }
+  
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  // Initial load
+  loadTasks();
+  
+  // Refresh button
+  refreshBtn?.addEventListener('click', () => {
+    loadTasks();
+  });
+  
+  // Auto-refresh every 30 seconds
+  setInterval(loadTasks, 30000);
+</script>

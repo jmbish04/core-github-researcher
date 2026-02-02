@@ -1,0 +1,82 @@
+---
+interface Task {
+  id: string;
+  query: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Props {
+  tasks: Task[];
+}
+
+const { tasks } = Astro.props;
+
+const getStatusBadgeClass = (status: string) => {
+  const classes: Record<string, string> = {
+    pending: 'badge-pending',
+    searching: 'badge-searching',
+    waiting_for_approval: 'badge-waiting',
+    analyzing: 'badge-analyzing',
+    completed: 'badge-completed',
+    rejected: 'badge-rejected',
+    timed_out: 'badge-timed_out',
+  };
+  return classes[status] || 'badge-pending';
+};
+
+const formatDate = (dateStr: string) => {
+  try {
+    return new Date(dateStr).toLocaleDateString();
+  } catch {
+    return dateStr;
+  }
+};
+---
+
+<div class="rounded-md border">
+  <table class="w-full">
+    <thead>
+      <tr class="border-b border-border bg-muted/50">
+        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Query</th>
+        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Status</th>
+        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Created</th>
+        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {tasks.length === 0 ? (
+        <tr>
+          <td colspan="4" class="h-24 text-center text-muted-foreground">
+            No research tasks yet. Start a new research above!
+          </td>
+        </tr>
+      ) : (
+        tasks.map((task) => (
+          <tr class="border-b border-border transition-colors hover:bg-muted/50">
+            <td class="p-4 align-middle font-medium">{task.query}</td>
+            <td class="p-4 align-middle">
+              <span class={`badge ${getStatusBadgeClass(task.status)}`}>
+                {task.status.replace(/_/g, ' ')}
+              </span>
+            </td>
+            <td class="p-4 align-middle text-muted-foreground">{formatDate(task.createdAt)}</td>
+            <td class="p-4 align-middle">
+              {task.status === 'waiting_for_approval' && (
+                <a href={`/approve/${task.id}`} class="btn btn-primary btn-sm">
+                  Approve
+                </a>
+              )}
+              {task.status === 'completed' && (
+                <a href={`/task/${task.id}`} class="btn btn-secondary btn-sm">
+                  View
+                </a>
+              )}
+            </td>
+          </tr>
+        ))
+      )}
+    </tbody>
+  </table>
+</div>

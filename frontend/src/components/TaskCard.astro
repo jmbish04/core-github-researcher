@@ -1,0 +1,64 @@
+---
+interface Props {
+  id: string;
+  query: string;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const { id, query, status, createdAt, updatedAt } = Astro.props;
+
+const getStatusBadgeClass = (status: string) => {
+  const classes: Record<string, string> = {
+    pending: 'badge-pending',
+    searching: 'badge-searching',
+    waiting_for_approval: 'badge-waiting',
+    analyzing: 'badge-analyzing',
+    completed: 'badge-completed',
+    rejected: 'badge-rejected',
+    timed_out: 'badge-timed_out',
+  };
+  return classes[status] || 'badge-pending';
+};
+
+const formatDate = (dateStr: string) => {
+  try {
+    return new Date(dateStr).toLocaleString();
+  } catch {
+    return dateStr;
+  }
+};
+
+const statusLabel = status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+---
+
+<div class="card p-4 hover:border-primary/50 transition-colors cursor-pointer" data-task-id={id}>
+  <div class="flex items-start justify-between gap-4">
+    <div class="flex-1 min-w-0">
+      <h3 class="font-semibold text-foreground truncate">{query}</h3>
+      <p class="text-xs text-muted-foreground mt-1">
+        Created: {formatDate(createdAt)}
+      </p>
+    </div>
+    <span class={`badge ${getStatusBadgeClass(status)}`}>
+      {statusLabel}
+    </span>
+  </div>
+  
+  {status === 'waiting_for_approval' && (
+    <div class="mt-3 pt-3 border-t border-border">
+      <a href={`/approve/${id}`} class="btn btn-primary btn-sm w-full">
+        Review & Approve
+      </a>
+    </div>
+  )}
+  
+  {status === 'completed' && (
+    <div class="mt-3 pt-3 border-t border-border">
+      <a href={`/task/${id}`} class="btn btn-secondary btn-sm w-full">
+        View Results
+      </a>
+    </div>
+  )}
+</div>
