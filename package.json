@@ -10,18 +10,21 @@
   "scripts": {
     "build": "tsc --noEmit",
     "dev": "wrangler dev",
+    "types": "wrangler types",
     "watch": "tsc --watch"
   },
   "dependencies": {
     "@hono/swagger-ui": "^0.5.3",
     "@hono/zod-openapi": "^1.2.1",
     "@modelcontextprotocol/sdk": "0.6.0",
+    "@openai/agents": "^0.4.4",
+    "agents": "^0.3.6",
     "cheerio": "^1.0.0",
     "hono": "^4.11.7",
+    "openai": "^6.17.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260131.0",
     "typescript": "^5.3.3",
     "wrangler": "^4.61.1"
   }

@@ -6,7 +6,9 @@ type CacheEntry = {
   value: string;
 };
 
-// Cache entries persist only for the active worker instance.
+/**
+ * Cache entries persist only for the active worker instance.
+ */
 const cache = new Map<string, CacheEntry>();
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
@@ -26,6 +28,9 @@ const setCachedValue = (key: string, value: string) => {
   cache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, value });
 };
 
+/**
+ * Fetch JSON data and throw when the response is not ok.
+ */
 const fetchJson = async <T>(input: RequestInfo, init?: RequestInit): Promise<T> => {
   const response = await fetch(input, init);
   if (!response.ok) {
@@ -38,6 +43,9 @@ export type ProvidersEnv = {
   GITHUB_TOKEN?: string;
 };
 
+/**
+ * Search Stack Overflow and return a formatted string of results.
+ */
 export const searchStackOverflow = async (query: string, limit = 5): Promise<string> => {
   const cacheKey = `stackoverflow:${query}:${limit}`;
   const cached = getCachedValue(cacheKey);
@@ -84,6 +92,9 @@ export const searchStackOverflow = async (query: string, limit = 5): Promise<str
   }
 };
 
+/**
+ * Search MDN Web Docs and return a formatted string of results.
+ */
 export const searchMDN = async (query: string): Promise<string> => {
   const cacheKey = `mdn:${query}`;
   const cached = getCachedValue(cacheKey);
@@ -116,6 +127,9 @@ export const searchMDN = async (query: string): Promise<string> => {
   }
 };
 
+/**
+ * Search GitHub repositories and code and return a formatted string of results.
+ */
 export const searchGitHub = async (
   env: ProvidersEnv,
   query: string,
@@ -195,6 +209,9 @@ export const searchGitHub = async (
   }
 };
 
+/**
+ * Search the npm registry and return a formatted string of results.
+ */
 export const searchNpm = async (query: string, limit = 5): Promise<string> => {
   const cacheKey = `npm:${query}:${limit}`;
   const cached = getCachedValue(cacheKey);
@@ -224,6 +241,9 @@ export const searchNpm = async (query: string, limit = 5): Promise<string> => {
   }
 };
 
+/**
+ * Search PyPI for a package and return a formatted string of results.
+ */
 export const searchPyPI = async (query: string): Promise<string> => {
   const cacheKey = `pypi:${query}`;
   const cached = getCachedValue(cacheKey);
@@ -257,6 +277,9 @@ export const searchPyPI = async (query: string): Promise<string> => {
   }
 };
 
+/**
+ * Search all supported providers and return a combined formatted string.
+ */
 export const searchAll = async (env: ProvidersEnv, query: string, limit = 3): Promise<string> => {
   const cacheKey = `all:${query}:${limit}`;
   const cached = getCachedValue(cacheKey);
@@ -291,5 +314,8 @@ export const searchAll = async (env: ProvidersEnv, query: string, limit = 3): Pr
   }
 };
 
+/**
+ * Cache note shared across API descriptions.
+ */
 export const cacheNote =
   'Results are cached in-memory using a Map. Cache entries persist only for the active worker instance.';

@@ -2,15 +2,22 @@ import { OpenAPIHono } from '@hono/zod-openapi';
 import { swaggerUI } from '@hono/swagger-ui';
 import { upgradeWebSocket } from 'hono/cloudflare-workers';
 import { handleMcpWebSocket, WebSocketTransport } from './mcp/server.js';
+import { routeAgentRequest } from 'agents';
+import { CodeResearchAgent } from './agents/index.js';
+import type { DurableObjectNamespace } from '@cloudflare/workers-types';
 import { registerSearchRoutes } from './routes/search.js';
-import { cacheNote } from './lib/providers.js';
+import { cacheNote, type ProvidersEnv } from './lib/providers.js';
 
 type Env = {
-  Bindings: {
-    GITHUB_TOKEN?: string;
+  Bindings: Cloudflare.Env & ProvidersEnv & {
+    OPENAI_API_KEY: string;
+    CODE_RESEARCH_AGENT: DurableObjectNamespace<CodeResearchAgent>;
   };
 };
 
+/**
+ * Main Cloudflare Worker application exposing REST, MCP, and Agents endpoints.
+ */
 const app = new OpenAPIHono<Env>();
 const searchApi = new OpenAPIHono<Env>();
 
@@ -71,5 +78,13 @@ app.get(
     };
   })
 );
+
+app.all('/agents/*', async (c) => {
+  const response = await routeAgentRequest(c.req.raw, c.env);
+  if (response) {
+    return response;
+  }
+  return c.text('Agent not found', 404);
+});
 
 export default app;

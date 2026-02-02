@@ -1,5 +1,11 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import { CallToolRequestSchema, ErrorCode, ListToolsRequestSchema, McpError } from '@modelcontextprotocol/sdk/types.js';
+import {
+  CallToolRequestSchema,
+  ErrorCode,
+  ListToolsRequestSchema,
+  McpError,
+  type CallToolRequest,
+} from '@modelcontextprotocol/sdk/types.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 import type { WSContext } from 'hono/ws';
@@ -20,23 +26,38 @@ export class WebSocketTransport implements Transport {
   onerror?: (error: Error) => void;
   onmessage?: (message: JSONRPCMessage) => void;
 
+  /**
+   * Create a transport that bridges MCP JSON-RPC messages over a Cloudflare WebSocket.
+   */
   constructor(ws: WSContext) {
     this.ws = ws;
   }
 
+  /**
+   * Start the transport (no-op for WebSocket-backed transports).
+   */
   async start(): Promise<void> {
     return;
   }
 
+  /**
+   * Send a JSON-RPC message to the WebSocket client.
+   */
   async send(message: JSONRPCMessage): Promise<void> {
     this.ws.send(JSON.stringify(message));
   }
 
+  /**
+   * Close the WebSocket connection.
+   */
   async close(): Promise<void> {
     this.ws.close();
     this.onclose?.();
   }
 
+  /**
+   * Parse inbound JSON-RPC messages from the WebSocket and forward to MCP.
+   */
   handleMessage(data: string) {
     try {
       const parsed = JSON.parse(data) as JSONRPCMessage;
@@ -61,7 +82,7 @@ const getServer = (env: ProvidersEnv) => {
     }
   );
 
-  server.onerror = (error) => console.error('[MCP Error]', error);
+  server.onerror = (error: Error) => console.error('[MCP Error]', error);
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
@@ -180,7 +201,7 @@ const getServer = (env: ProvidersEnv) => {
     ],
   }));
 
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
     switch (request.params.name) {
       case 'search_stackoverflow': {
         const { query, limit } = request.params.arguments as { query: string; limit?: number };
@@ -220,12 +241,16 @@ const getServer = (env: ProvidersEnv) => {
   return server;
 };
 
-// This transport uses a WebSocket to move JSON-RPC messages between the MCP server and connected client.
+/**
+ * Connect the MCP server to a WebSocket transport and return the transport instance.
+ */
 export const handleMcpWebSocket = async (ws: WSContext, env: ProvidersEnv) => {
   const transport = new WebSocketTransport(ws);
   const server = getServer(env);
 
-  // The WebSocket transport bridges JSON-RPC messages between the MCP Server and the WebSocket client.
+  /**
+   * Bridge JSON-RPC messages between the MCP server and WebSocket client.
+   */
   await server.connect(transport);
 
   return transport;

@@ -44,6 +44,9 @@ const errorResponse = z.object({
   message: z.string(),
 });
 
+/**
+ * Build a reusable OpenAPI route configuration for search providers.
+ */
 const createSearchRoute = (
   platform: string,
   operationId: string,
@@ -89,7 +92,10 @@ const searchNpmRoute = createSearchRoute('npm', 'searchNpm', queryWithLimitParam
 const searchPyPiRoute = createSearchRoute('pypi', 'searchPyPi', queryOnlyParams, 'Search results for pypi');
 const searchAllRoute = createSearchRoute('all', 'searchAll', allQueryParams, 'Search results for all');
 
-export const registerSearchRoutes = (app: OpenAPIHono<{ Bindings: ProvidersEnv }>) => {
+/**
+ * Register REST API endpoints for each search provider.
+ */
+export const registerSearchRoutes = <Env extends Cloudflare.Env>(app: OpenAPIHono<{ Bindings: Env }>) => {
   app.openapi(searchStackOverflowRoute, async (c) => {
     const query = c.req.query('query') ?? '';
     const limitParam = c.req.query('limit');
