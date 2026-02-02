@@ -17,7 +17,7 @@ const searchApi = new OpenAPIHono<Env>();
 registerSearchRoutes(searchApi);
 app.route('/api/search', searchApi);
 
-app.doc31('/openapi.json', {
+app.doc('/openapi.json', {
   openapi: '3.1.0',
   info: {
     title: 'Code Research API',

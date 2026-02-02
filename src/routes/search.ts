@@ -47,7 +47,7 @@ const errorResponse = z.object({
 const createSearchRoute = (
   platform: string,
   operationId: string,
-  query: z.ZodTypeAny,
+  query: z.ZodObject<Record<string, z.ZodTypeAny>>,
   responseDescription: string
 ) =>
   createRoute({
@@ -91,37 +91,46 @@ const searchAllRoute = createSearchRoute('all', 'searchAll', allQueryParams, 'Se
 
 export const registerSearchRoutes = (app: OpenAPIHono<{ Bindings: ProvidersEnv }>) => {
   app.openapi(searchStackOverflowRoute, async (c) => {
-    const { query, limit } = c.req.valid('query');
+    const query = c.req.query('query') ?? '';
+    const limitParam = c.req.query('limit');
+    const limit = limitParam ? Number(limitParam) : undefined;
     const results = await searchStackOverflow(query, limit);
     return c.json({ platform: 'stackoverflow', query, results }, 200);
   });
 
   app.openapi(searchMdnRoute, async (c) => {
-    const { query } = c.req.valid('query');
+    const query = c.req.query('query') ?? '';
     const results = await searchMDN(query);
     return c.json({ platform: 'mdn', query, results }, 200);
   });
 
   app.openapi(searchGitHubRoute, async (c) => {
-    const { query, limit, language } = c.req.valid('query');
+    const query = c.req.query('query') ?? '';
+    const limitParam = c.req.query('limit');
+    const limit = limitParam ? Number(limitParam) : undefined;
+    const language = c.req.query('language') ?? undefined;
     const results = await searchGitHub(c.env, query, language, limit);
     return c.json({ platform: 'github', query, results }, 200);
   });
 
   app.openapi(searchNpmRoute, async (c) => {
-    const { query, limit } = c.req.valid('query');
+    const query = c.req.query('query') ?? '';
+    const limitParam = c.req.query('limit');
+    const limit = limitParam ? Number(limitParam) : undefined;
     const results = await searchNpm(query, limit);
     return c.json({ platform: 'npm', query, results }, 200);
   });
 
   app.openapi(searchPyPiRoute, async (c) => {
-    const { query } = c.req.valid('query');
+    const query = c.req.query('query') ?? '';
     const results = await searchPyPI(query);
     return c.json({ platform: 'pypi', query, results }, 200);
   });
 
   app.openapi(searchAllRoute, async (c) => {
-    const { query, limit } = c.req.valid('query');
+    const query = c.req.query('query') ?? '';
+    const limitParam = c.req.query('limit');
+    const limit = limitParam ? Number(limitParam) : undefined;
     const results = await searchAll(c.env, query, limit ?? 3);
     return c.json({ platform: 'all', query, results }, 200);
   });

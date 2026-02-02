@@ -221,7 +221,6 @@ const getServer = (env: ProvidersEnv) => {
 };
 
 // This transport uses a WebSocket to move JSON-RPC messages between the MCP server and connected client.
-// This transport uses a WebSocket to move JSON-RPC messages between the MCP server and connected client.
 export const handleMcpWebSocket = async (ws: WSContext, env: ProvidersEnv) => {
   const transport = new WebSocketTransport(ws);
   const server = getServer(env);
