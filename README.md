@@ -136,6 +136,20 @@ For development with auto-rebuild on changes:
 npm run watch
 ```
 
+### Generated Worker Types
+
+Use Wrangler to generate types for your Worker bindings and runtime APIs:
+```bash
+npm run types
+```
+
+This uses `.dev.vars` to pick up secrets for type generation and writes `worker-configuration.d.ts`.
+
+### Agents
+
+The Worker routes `/agents/*` requests through the Cloudflare Agents SDK.
+Set `OPENAI_API_KEY` in `.dev.vars` before running locally.
+
 ### Error Handling
 
 The server implements robust error handling:
@@ -144,25 +158,9 @@ The server implements robust error handling:
 - Graceful fallbacks for service unavailability
 - Cached responses to reduce API load
 
-### Debugging
-
-Since MCP servers communicate over stdio, debugging can be challenging. Use the MCP Inspector for detailed request/response monitoring:
-
-```bash
-npm run inspector
-```
-
-The Inspector provides:
-- Real-time request/response monitoring
-- Tool execution tracing
-- Error stack traces
-- Performance metrics
-
-Visit the provided URL in your browser to access the debugging interface.
-
 ### Caching
 
-Results are cached using `node-cache`:
+Results are cached in memory for the life of a Worker instance:
 - Default TTL: 1 hour
 - Separate cache keys per query/limit combination
 - Platform-specific caching strategies

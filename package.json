@@ -1,29 +1,31 @@
 {
   "name": "code-research-server",
   "version": "0.1.0",
-  "description": "A Model Context Protocol server",
+  "description": "A Model Context Protocol server running on Cloudflare Workers",
   "private": true,
   "type": "module",
-  "bin": {
-    "code-research-server": "./build/index.js"
-  },
   "files": [
     "build"
   ],
   "scripts": {
-    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
-    "prepare": "npm run build",
-    "watch": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js"
+    "build": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "types": "wrangler types",
+    "watch": "tsc --watch"
   },
   "dependencies": {
+    "@hono/swagger-ui": "^0.5.3",
+    "@hono/zod-openapi": "^1.2.1",
     "@modelcontextprotocol/sdk": "0.6.0",
-    "axios": "^1.7.9",
+    "@openai/agents": "^0.4.4",
+    "agents": "^0.3.6",
     "cheerio": "^1.0.0",
-    "node-cache": "^5.1.2"
+    "hono": "^4.11.7",
+    "openai": "^6.17.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@types/node": "^20.11.24",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "wrangler": "^4.61.1"
   }
 }
