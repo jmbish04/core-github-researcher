@@ -275,8 +275,8 @@ export const searchAll = async (env: ProvidersEnv, query: string, limit = 3): Pr
     try {
       const gh = await searchGitHub(env, query, undefined, limit);
       results += `=== GitHub Results ===\n${gh}\n\n`;
-    } catch {
-      results += `=== GitHub Results ===\nGitHub search currently unavailable\n\n`;
+    } catch (error) {
+      results += `=== GitHub Results ===\nGitHub search failed: ${error instanceof Error ? error.message : 'Unknown error'}\n\n`;
     }
 
     results += `=== npm Packages ===\n${npm}\n\n` + `=== PyPI Packages ===\n${pypi}`;
