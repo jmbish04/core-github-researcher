@@ -267,7 +267,7 @@ export class ResearchWorkflow extends WorkflowEntrypoint<Env, ResearchParams> {
       const packageResponse = await fetch(packageUrl, { headers });
       if (packageResponse.ok) {
         const data = await packageResponse.json() as { content: string };
-        const content = atob(data.content);
+        const content = Buffer.from(data.content, 'base64').toString('utf-8');
         const pkg = JSON.parse(content);
         packageInfo = JSON.stringify({
           name: pkg.name,
