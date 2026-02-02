@@ -2,7 +2,7 @@ import { Agent, callable } from 'agents';
 import OpenAI from 'openai';
 import { Agent as OpenAIAgent, OpenAIResponsesModel, setDefaultOpenAIKey } from '@openai/agents';
 
-type OpenAIEnv = Cloudflare.Env;
+type OpenAIEnv = Env;
 
 /**
  * Create an OpenAI Agents SDK agent instance configured with the OpenAI API key.
