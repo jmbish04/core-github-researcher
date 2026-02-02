@@ -1,0 +1,6 @@
+name = "core-github-researcher"
+main = "src/index.ts"
+compatibility_date = "2026-02-02"
+
+[vars]
+GITHUB_TOKEN = ""
