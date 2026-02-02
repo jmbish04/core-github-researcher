@@ -2,6 +2,7 @@
   "name": "core-github-researcher",
   "main": "src/index.ts",
   "compatibility_date": "2026-02-02",
+  "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "GITHUB_TOKEN": "",
     "OPENAI_API_KEY": ""

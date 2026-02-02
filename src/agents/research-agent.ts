@@ -60,7 +60,7 @@ export class ResearchAgent extends Agent<Env> {
       params,
     });
 
-    // Update task with workflow instance ID
+    // Update task status - note: workflowInstanceId equals taskId by design
     await this.env.DB.prepare(
       `UPDATE research_tasks SET status = ?, updated_at = datetime('now') WHERE id = ?`
     ).bind('searching', taskId).run();
@@ -71,6 +71,7 @@ export class ResearchAgent extends Agent<Env> {
       status: 'searching',
       createdAt: now,
       updatedAt: now,
+      // Workflow instance ID matches task ID by design
       workflowInstanceId: instance.id,
     };
   }
