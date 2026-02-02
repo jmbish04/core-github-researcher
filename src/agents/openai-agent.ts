@@ -22,7 +22,15 @@ const createOpenAIClientAgent = (apiKey: string) => {
  * Cloudflare Agents SDK wrapper that hosts an OpenAI Agents SDK agent instance.
  */
 export class CodeResearchAgent extends Agent<OpenAIEnv> {
-  private openaiAgent = createOpenAIClientAgent(this.env.OPENAI_API_KEY);
+  private openaiAgent: OpenAIAgent;
+
+  constructor(state: DurableObjectState, env: OpenAIEnv) {
+    super(state, env);
+    if (!env.OPENAI_API_KEY) {
+      throw new Error('OPENAI_API_KEY must be configured for CodeResearchAgent.');
+    }
+    this.openaiAgent = createOpenAIClientAgent(env.OPENAI_API_KEY);
+  }
 
   /**
    * Returns a basic status payload for the agent instance.
