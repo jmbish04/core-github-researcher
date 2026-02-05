@@ -1,4 +1,4 @@
-import { Agent, callable } from 'agents';
+import { Agent } from 'agents';
 import OpenAI from 'openai';
 import { Agent as OpenAIAgent, OpenAIResponsesModel, setDefaultOpenAIKey } from '@openai/agents';
 
@@ -35,9 +35,6 @@ export class CodeResearchAgent extends Agent<OpenAIEnv> {
   /**
    * Returns a basic status payload for the agent instance.
    */
-  @callable({
-    description: 'Return the agent name and model identifier.',
-  })
   async getStatus() {
     return {
       name: this.name,

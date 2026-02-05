@@ -2,22 +2,51 @@
   "name": "core-github-researcher",
   "main": "src/index.ts",
   "compatibility_date": "2026-02-02",
+  "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "GITHUB_TOKEN": "",
     "OPENAI_API_KEY": ""
   },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "research-db",
+      "database_id": "",
+      "migrations_dir": "migrations"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
         "name": "CODE_RESEARCH_AGENT",
         "class_name": "CodeResearchAgent"
+      },
+      {
+        "name": "RESEARCH_AGENT",
+        "class_name": "ResearchAgent"
       }
     ]
   },
+  "workflows": [
+    {
+      "name": "research-workflow",
+      "binding": "RESEARCH_WORKFLOW",
+      "class_name": "ResearchWorkflow"
+    }
+  ],
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["CodeResearchAgent"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["ResearchAgent"]
     }
-  ]
+  ],
+  "assets": {
+    "directory": "./frontend/dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  }
 }

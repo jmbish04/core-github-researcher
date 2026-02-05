@@ -1,0 +1,306 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import '../../styles/globals.css';
+
+// This is a dynamic route that will be handled client-side
+// For static builds, we generate a placeholder page
+export function getStaticPaths() {
+  // Generate a placeholder path - actual routing is handled client-side
+  return [{ params: { id: '_' } }];
+}
+---
+
+<Layout title="Approve Research - GitHub Research Agent">
+  <div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="mb-6">
+      <a href="/" class="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="m12 19-7-7 7-7"/>
+          <path d="M19 12H5"/>
+        </svg>
+        Back to Dashboard
+      </a>
+    </div>
+    
+    <div id="loading" class="card p-8 text-center">
+      <svg class="animate-spin mx-auto h-8 w-8 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      <p class="mt-4 text-muted-foreground">Loading task details...</p>
+    </div>
+    
+    <div id="error" class="hidden card p-8 text-center">
+      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mx-auto mb-4 text-red-400">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="m15 9-6 6"/>
+        <path d="m9 9 6 6"/>
+      </svg>
+      <h2 class="text-lg font-semibold">Error Loading Task</h2>
+      <p id="error-message" class="mt-2 text-muted-foreground"></p>
+      <a href="/" class="btn btn-primary btn-md mt-4">Return to Dashboard</a>
+    </div>
+    
+    <div id="content" class="hidden">
+      <div class="card p-6 mb-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold" id="task-query"></h1>
+            <p class="text-muted-foreground mt-1">
+              Select the repositories you want to analyze
+            </p>
+          </div>
+          <span class="badge badge-waiting">Waiting for Approval</span>
+        </div>
+      </div>
+      
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold">Found Repositories</h2>
+          <div class="flex items-center gap-2">
+            <span id="selected-count" class="text-sm text-muted-foreground">0 selected</span>
+            <button id="select-all-btn" class="btn btn-outline btn-sm">
+              Select All
+            </button>
+          </div>
+        </div>
+        
+        <div id="candidates-list" class="space-y-3">
+          <!-- Candidates will be rendered here -->
+        </div>
+      </div>
+      
+      <div class="flex gap-4">
+        <button id="approve-btn" class="btn btn-primary btn-lg flex-1" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+            <path d="M20 6 9 17l-5-5"/>
+          </svg>
+          Approve Selected
+        </button>
+        <button id="reject-btn" class="btn btn-destructive btn-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+            <path d="M18 6 6 18"/>
+            <path d="m6 6 12 12"/>
+          </svg>
+          Reject Task
+        </button>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  interface Candidate {
+    id: string;
+    fullName: string;
+    url: string;
+    stars: number;
+    description: string;
+  }
+  
+  interface PendingApproval {
+    taskId: string;
+    query: string;
+    candidates: Candidate[];
+  }
+  
+  const loadingEl = document.getElementById('loading');
+  const errorEl = document.getElementById('error');
+  const errorMessageEl = document.getElementById('error-message');
+  const contentEl = document.getElementById('content');
+  const taskQueryEl = document.getElementById('task-query');
+  const candidatesListEl = document.getElementById('candidates-list');
+  const selectedCountEl = document.getElementById('selected-count');
+  const selectAllBtn = document.getElementById('select-all-btn');
+  const approveBtn = document.getElementById('approve-btn') as HTMLButtonElement;
+  const rejectBtn = document.getElementById('reject-btn') as HTMLButtonElement;
+  
+  // Extract task ID from URL
+  const pathParts = window.location.pathname.split('/');
+  const taskId = pathParts[pathParts.length - 1];
+  
+  let candidates: Candidate[] = [];
+  let selectedIds: Set<string> = new Set();
+  
+  function showError(message: string) {
+    loadingEl?.classList.add('hidden');
+    contentEl?.classList.add('hidden');
+    errorEl?.classList.remove('hidden');
+    if (errorMessageEl) errorMessageEl.textContent = message;
+  }
+  
+  function updateSelectedCount() {
+    if (selectedCountEl) {
+      selectedCountEl.textContent = `${selectedIds.size} selected`;
+    }
+    if (approveBtn) {
+      approveBtn.disabled = selectedIds.size === 0;
+    }
+  }
+  
+  function renderCandidates() {
+    if (!candidatesListEl) return;
+    
+    candidatesListEl.innerHTML = candidates.map(c => `
+      <label class="flex items-start gap-4 p-4 rounded-lg border border-border hover:border-primary/50 cursor-pointer transition-colors ${selectedIds.has(c.id) ? 'border-primary bg-primary/5' : ''}">
+        <input
+          type="checkbox"
+          class="checkbox mt-1"
+          data-id="${c.id}"
+          ${selectedIds.has(c.id) ? 'checked' : ''}
+        />
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="font-semibold">${escapeHtml(c.fullName)}</span>
+            <span class="text-xs text-muted-foreground">⭐ ${c.stars.toLocaleString()}</span>
+          </div>
+          <p class="text-sm text-muted-foreground mt-1 line-clamp-2">${escapeHtml(c.description)}</p>
+          <a href="${c.url}" target="_blank" rel="noopener" class="text-xs text-primary hover:underline mt-1 inline-block" onclick="event.stopPropagation()">
+            View on GitHub →
+          </a>
+        </div>
+      </label>
+    `).join('');
+    
+    // Add event listeners to checkboxes
+    candidatesListEl.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+      checkbox.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        const id = target.dataset.id!;
+        if (target.checked) {
+          selectedIds.add(id);
+        } else {
+          selectedIds.delete(id);
+        }
+        updateSelectedCount();
+        renderCandidates();
+      });
+    });
+  }
+  
+  function escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+  
+  async function loadTaskDetails() {
+    try {
+      const response = await fetch('/api/research/pending');
+      if (!response.ok) {
+        throw new Error('Failed to load pending approvals');
+      }
+      
+      const pending: PendingApproval[] = await response.json();
+      const task = pending.find(p => p.taskId === taskId);
+      
+      if (!task) {
+        showError('Task not found or not waiting for approval');
+        return;
+      }
+      
+      candidates = task.candidates;
+      
+      loadingEl?.classList.add('hidden');
+      contentEl?.classList.remove('hidden');
+      
+      if (taskQueryEl) taskQueryEl.textContent = task.query;
+      renderCandidates();
+      updateSelectedCount();
+    } catch (error) {
+      showError(error instanceof Error ? error.message : 'An error occurred');
+    }
+  }
+  
+  // Select All functionality
+  selectAllBtn?.addEventListener('click', () => {
+    if (selectedIds.size === candidates.length) {
+      selectedIds.clear();
+    } else {
+      candidates.forEach(c => selectedIds.add(c.id));
+    }
+    updateSelectedCount();
+    renderCandidates();
+  });
+  
+  // Approve button
+  approveBtn?.addEventListener('click', async () => {
+    if (selectedIds.size === 0) return;
+    
+    approveBtn.disabled = true;
+    approveBtn.innerHTML = `
+      <svg class="animate-spin mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Processing...
+    `;
+    
+    try {
+      const response = await fetch(`/api/research/tasks/${taskId}/approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selectedRepoIds: Array.from(selectedIds) }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to submit approval');
+      }
+      
+      // Redirect to dashboard
+      window.location.href = '/';
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'An error occurred');
+      approveBtn.disabled = false;
+      approveBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Approve Selected
+      `;
+    }
+  });
+  
+  // Reject button
+  rejectBtn?.addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to reject this task? This action cannot be undone.')) {
+      return;
+    }
+    
+    rejectBtn.disabled = true;
+    rejectBtn.innerHTML = `
+      <svg class="animate-spin mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+    `;
+    
+    try {
+      const response = await fetch(`/api/research/tasks/${taskId}/reject`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to reject task');
+      }
+      
+      // Redirect to dashboard
+      window.location.href = '/';
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'An error occurred');
+      rejectBtn.disabled = false;
+      rejectBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2">
+          <path d="M18 6 6 18"/>
+          <path d="m6 6 12 12"/>
+        </svg>
+        Reject Task
+      `;
+    }
+  });
+  
+  // Load task on page load
+  loadTaskDetails();
+</script>
