@@ -46,11 +46,14 @@ export class ResearchAgent extends Agent<Env> {
     const db = getDb(this.env.DB);
     const taskId = crypto.randomUUID();
     const now = new Date().toISOString();
+    
+    // Generate a new session ID if not provided to avoid collisions
+    const effectiveSessionId = sessionId || crypto.randomUUID();
 
     // Create task record in D1 using Drizzle
     await db.insert(researchTasks).values({
       id: taskId,
-      sessionId: sessionId || 'default',
+      sessionId: effectiveSessionId,
       query,
       status: 'pending',
       createdAt: now,
@@ -81,7 +84,7 @@ export class ResearchAgent extends Agent<Env> {
       status: 'searching',
       createdAt: now,
       updatedAt: now,
-      sessionId: sessionId || 'default',
+      sessionId: effectiveSessionId,
       // Workflow instance ID matches task ID by design
       workflowInstanceId: instance.id,
     };

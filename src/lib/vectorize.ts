@@ -19,6 +19,9 @@ export interface RepoVector {
 /**
  * Generate embeddings for a repository using text content
  * In production, this would use an embedding model (e.g., OpenAI embeddings)
+ * For now, we use a simple deterministic hash-based embedding
+ * 
+ * TODO: Integrate with OpenAI Embeddings API using the openaiKey parameter
  */
 export async function generateRepoEmbedding(
   repoData: {
@@ -27,7 +30,7 @@ export async function generateRepoEmbedding(
     topics?: string[];
     language?: string;
   },
-  openaiKey?: string
+  _openaiKey?: string // Unused for now, will be used when implementing real embeddings
 ): Promise<number[]> {
   // For now, create a simple hash-based embedding
   // In production, replace with actual embedding API call
@@ -136,6 +139,10 @@ export async function deleteRepository(
 
 /**
  * Query repositories by metadata filters
+ * 
+ * Note: This uses a zero vector for metadata-only filtering, which is a workaround
+ * since Vectorize requires a vector query. In production, consider using D1 queries
+ * for pure metadata filtering, and use Vectorize only for similarity searches.
  */
 export async function queryRepositoriesByMetadata(
   vectorize: VectorizeIndex,
@@ -146,6 +153,7 @@ export async function queryRepositoriesByMetadata(
   metadata: RepoVector['metadata'];
 }>> {
   // Since Vectorize requires a vector query, we'll use a zero vector for metadata-only filtering
+  // This is inefficient but allows querying by metadata. Consider using D1 for metadata-only queries.
   const zeroVector = new Array(1536).fill(0);
   
   const results = await vectorize.query(zeroVector, {

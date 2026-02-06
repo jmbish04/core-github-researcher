@@ -35,7 +35,8 @@ export async function sessionMiddleware(c: Context, next: Next) {
       updatedAt: new Date().toISOString(),
     });
     
-    // Set cookie for future requests
+    // Set cookie for future requests (Secure flag will be added in production)
+    // Note: Secure flag should be added when deployed with HTTPS
     c.header('Set-Cookie', `session_id=${sessionId}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000`); // 30 days
   } else {
     // Verify session exists, create if not

@@ -336,20 +336,34 @@ const getServer = (env: McpEnv) => {
           limit?: number 
         };
         
-        let queryBuilder = db.select().from(researchTasks);
+        // Build query with conditional filters
+        const conditions = [];
+        if (status) conditions.push(eq(researchTasks.status, status));
+        if (sessionId) conditions.push(eq(researchTasks.sessionId, sessionId));
         
-        if (status || sessionId) {
-          const conditions = [];
-          if (status) conditions.push(eq(researchTasks.status, status));
-          if (sessionId) conditions.push(eq(researchTasks.sessionId, sessionId));
-          if (conditions.length === 1) {
-            queryBuilder = queryBuilder.where(conditions[0]) as any;
-          } else if (conditions.length > 1) {
-            queryBuilder = queryBuilder.where(and(...conditions)) as any;
-          }
+        let tasks;
+        if (conditions.length === 0) {
+          tasks = await db.select()
+            .from(researchTasks)
+            .orderBy(desc(researchTasks.createdAt))
+            .limit(limit)
+            .all();
+        } else if (conditions.length === 1) {
+          tasks = await db.select()
+            .from(researchTasks)
+            .where(conditions[0])
+            .orderBy(desc(researchTasks.createdAt))
+            .limit(limit)
+            .all();
+        } else {
+          tasks = await db.select()
+            .from(researchTasks)
+            .where(and(...conditions))
+            .orderBy(desc(researchTasks.createdAt))
+            .limit(limit)
+            .all();
         }
         
-        const tasks = await queryBuilder.orderBy(desc(researchTasks.createdAt)).limit(limit).all();
         return { content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }] };
       }
       case 'query_repo_candidates': {
@@ -359,20 +373,31 @@ const getServer = (env: McpEnv) => {
           limit?: number;
         };
         
-        let queryBuilder = db.select().from(repoCandidates);
+        // Build query with conditional filters
+        const conditions = [];
+        if (taskId) conditions.push(eq(repoCandidates.taskId, taskId));
+        if (isSelected !== undefined) conditions.push(eq(repoCandidates.isSelected, isSelected ? 1 : 0));
         
-        if (taskId || isSelected !== undefined) {
-          const conditions = [];
-          if (taskId) conditions.push(eq(repoCandidates.taskId, taskId));
-          if (isSelected !== undefined) conditions.push(eq(repoCandidates.isSelected, isSelected ? 1 : 0));
-          if (conditions.length === 1) {
-            queryBuilder = queryBuilder.where(conditions[0]) as any;
-          } else if (conditions.length > 1) {
-            queryBuilder = queryBuilder.where(and(...conditions)) as any;
-          }
+        let candidates;
+        if (conditions.length === 0) {
+          candidates = await db.select()
+            .from(repoCandidates)
+            .limit(limit)
+            .all();
+        } else if (conditions.length === 1) {
+          candidates = await db.select()
+            .from(repoCandidates)
+            .where(conditions[0])
+            .limit(limit)
+            .all();
+        } else {
+          candidates = await db.select()
+            .from(repoCandidates)
+            .where(and(...conditions))
+            .limit(limit)
+            .all();
         }
         
-        const candidates = await queryBuilder.limit(limit).all();
         return { content: [{ type: 'text', text: JSON.stringify(candidates, null, 2) }] };
       }
       case 'query_vectorize': {
