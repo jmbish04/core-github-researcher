@@ -7,6 +7,7 @@ import { CodeResearchAgent, ResearchAgent } from './agents/index.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerResearchRoutes } from './routes/research.js';
 import { cacheNote, type ProvidersEnv } from './lib/providers.js';
+import { sessionMiddleware, requestLoggingMiddleware } from './lib/session.js';
 
 // Export workflow and agents for Cloudflare
 export { ResearchWorkflow } from './workflows/research-workflow.js';
@@ -18,6 +19,7 @@ type Env = {
     CODE_RESEARCH_AGENT: DurableObjectNamespace<CodeResearchAgent>;
     RESEARCH_AGENT: DurableObjectNamespace<ResearchAgent>;
     DB: D1Database;
+    VECTORIZE: VectorizeIndex;
     ASSETS?: Fetcher;
   };
 };
@@ -30,6 +32,11 @@ type Env = {
  * Main Cloudflare Worker application exposing REST, MCP, and Agents endpoints.
  */
 const app = new OpenAPIHono<Env>();
+
+// Apply session middleware to all routes
+app.use('*', sessionMiddleware);
+app.use('*', requestLoggingMiddleware);
+
 const searchApi = new OpenAPIHono<Env>();
 
 registerSearchRoutes(searchApi);

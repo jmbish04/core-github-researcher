@@ -15,6 +15,12 @@
       "migrations_dir": "migrations"
     }
   ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "github-repos-index"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

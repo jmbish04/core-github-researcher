@@ -19,6 +19,16 @@ import {
   searchStackOverflow,
   type ProvidersEnv,
 } from '../lib/providers.js';
+import { getDb } from '../lib/session.js';
+import { researchTasks, repoCandidates, analysisResults, sessions, requestLogs } from '../db/schema.js';
+import { eq, desc, and, sql } from 'drizzle-orm';
+import { searchSimilarRepositories } from '../lib/vectorize.js';
+
+type McpEnv = ProvidersEnv & {
+  DB: D1Database;
+  VECTORIZE: VectorizeIndex;
+  OPENAI_API_KEY?: string;
+};
 
 export class WebSocketTransport implements Transport {
   private ws: WSContext;
@@ -69,7 +79,7 @@ export class WebSocketTransport implements Transport {
   }
 }
 
-const getServer = (env: ProvidersEnv) => {
+const getServer = (env: McpEnv) => {
   const server = new Server(
     {
       name: 'code-research-server',
@@ -198,10 +208,96 @@ const getServer = (env: ProvidersEnv) => {
           required: ['query'],
         },
       },
+      {
+        name: 'query_research_tasks',
+        description: 'Query research tasks from D1 database with optional filters',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            status: {
+              type: 'string',
+              description: 'Filter by task status (e.g., pending, searching, completed)',
+            },
+            sessionId: {
+              type: 'string',
+              description: 'Filter by session ID',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of results (default: 10)',
+              minimum: 1,
+              maximum: 100,
+            },
+          },
+        },
+      },
+      {
+        name: 'query_repo_candidates',
+        description: 'Query repository candidates from D1 database',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            taskId: {
+              type: 'string',
+              description: 'Filter by task ID',
+            },
+            isSelected: {
+              type: 'boolean',
+              description: 'Filter by selection status',
+            },
+            limit: {
+              type: 'number',
+              description: 'Maximum number of results (default: 20)',
+              minimum: 1,
+              maximum: 100,
+            },
+          },
+        },
+      },
+      {
+        name: 'query_vectorize',
+        description: 'Search for similar repositories using vector similarity in Vectorize',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: {
+              type: 'string',
+              description: 'Search query for finding similar repositories',
+            },
+            topK: {
+              type: 'number',
+              description: 'Number of top results to return (default: 10)',
+              minimum: 1,
+              maximum: 50,
+            },
+            taskId: {
+              type: 'string',
+              description: 'Optional: Filter by task ID',
+            },
+          },
+          required: ['query'],
+        },
+      },
+      {
+        name: 'get_session_stats',
+        description: 'Get statistics about a session including request counts and activity',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            sessionId: {
+              type: 'string',
+              description: 'Session ID to query',
+            },
+          },
+          required: ['sessionId'],
+        },
+      },
     ],
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request: CallToolRequest) => {
+    const db = getDb(env.DB);
+    
     switch (request.params.name) {
       case 'search_stackoverflow': {
         const { query, limit } = request.params.arguments as { query: string; limit?: number };
@@ -233,6 +329,100 @@ const getServer = (env: ProvidersEnv) => {
         const results = await searchAll(env, query, limit);
         return { content: [{ type: 'text', text: results }] };
       }
+      case 'query_research_tasks': {
+        const { status, sessionId, limit = 10 } = request.params.arguments as { 
+          status?: string; 
+          sessionId?: string; 
+          limit?: number 
+        };
+        
+        let queryBuilder = db.select().from(researchTasks);
+        
+        if (status || sessionId) {
+          const conditions = [];
+          if (status) conditions.push(eq(researchTasks.status, status));
+          if (sessionId) conditions.push(eq(researchTasks.sessionId, sessionId));
+          if (conditions.length === 1) {
+            queryBuilder = queryBuilder.where(conditions[0]) as any;
+          } else if (conditions.length > 1) {
+            queryBuilder = queryBuilder.where(and(...conditions)) as any;
+          }
+        }
+        
+        const tasks = await queryBuilder.orderBy(desc(researchTasks.createdAt)).limit(limit).all();
+        return { content: [{ type: 'text', text: JSON.stringify(tasks, null, 2) }] };
+      }
+      case 'query_repo_candidates': {
+        const { taskId, isSelected, limit = 20 } = request.params.arguments as {
+          taskId?: string;
+          isSelected?: boolean;
+          limit?: number;
+        };
+        
+        let queryBuilder = db.select().from(repoCandidates);
+        
+        if (taskId || isSelected !== undefined) {
+          const conditions = [];
+          if (taskId) conditions.push(eq(repoCandidates.taskId, taskId));
+          if (isSelected !== undefined) conditions.push(eq(repoCandidates.isSelected, isSelected ? 1 : 0));
+          if (conditions.length === 1) {
+            queryBuilder = queryBuilder.where(conditions[0]) as any;
+          } else if (conditions.length > 1) {
+            queryBuilder = queryBuilder.where(and(...conditions)) as any;
+          }
+        }
+        
+        const candidates = await queryBuilder.limit(limit).all();
+        return { content: [{ type: 'text', text: JSON.stringify(candidates, null, 2) }] };
+      }
+      case 'query_vectorize': {
+        const { query, topK = 10, taskId } = request.params.arguments as {
+          query: string;
+          topK?: number;
+          taskId?: string;
+        };
+        
+        const filter = taskId ? { taskId } : undefined;
+        const results = await searchSimilarRepositories(env.VECTORIZE, query, {
+          topK,
+          filter,
+          openaiKey: env.OPENAI_API_KEY,
+        });
+        
+        return { content: [{ type: 'text', text: JSON.stringify(results, null, 2) }] };
+      }
+      case 'get_session_stats': {
+        const { sessionId } = request.params.arguments as { sessionId: string };
+        
+        // Get session info
+        const session = await db.select().from(sessions).where(eq(sessions.id, sessionId)).get();
+        
+        if (!session) {
+          return { content: [{ type: 'text', text: 'Session not found' }] };
+        }
+        
+        // Get request count
+        const requestCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(requestLogs)
+          .where(eq(requestLogs.sessionId, sessionId))
+          .get();
+        
+        // Get task count
+        const taskCount = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(researchTasks)
+          .where(eq(researchTasks.sessionId, sessionId))
+          .get();
+        
+        const stats = {
+          session,
+          requestCount: requestCount?.count || 0,
+          taskCount: taskCount?.count || 0,
+        };
+        
+        return { content: [{ type: 'text', text: JSON.stringify(stats, null, 2) }] };
+      }
       default:
         throw new McpError(ErrorCode.MethodNotFound, `Unknown tool: ${request.params.name}`);
     }
@@ -244,7 +434,7 @@ const getServer = (env: ProvidersEnv) => {
 /**
  * Connect the MCP server to a WebSocket transport and return the transport instance.
  */
-export const handleMcpWebSocket = async (ws: WSContext, env: ProvidersEnv) => {
+export const handleMcpWebSocket = async (ws: WSContext, env: McpEnv) => {
   const transport = new WebSocketTransport(ws);
   const server = getServer(env);
 
