@@ -11,7 +11,9 @@
     "build": "tsc --noEmit",
     "dev": "wrangler dev",
     "types": "wrangler types",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "migrate:local": "wrangler d1 migrations apply research-db --local",
+    "migrate:prod": "wrangler d1 migrations apply research-db"
   },
   "dependencies": {
     "@hono/swagger-ui": "^0.5.3",
