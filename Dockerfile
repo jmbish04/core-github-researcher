@@ -24,9 +24,17 @@ WORKDIR /app
 # Copy the build artifacts from the previous stage
 COPY --from=build /app/build ./build
 COPY --from=build /app/package*.json ./
+COPY --from=build /app/wrangler.jsonc ./
 
 # Install only production dependencies
 RUN npm install --omit=dev
 
-# Define the command to run the MCP server
-ENTRYPOINT ["node", "build/index.js"]
+# Expose port for worker binding
+EXPOSE 8787
+
+# Environment variables for container binding
+ENV PORT=8787
+
+# Define the command to run the Cloudflare Worker
+# Using wrangler dev for local development or wrangler deploy for production
+ENTRYPOINT ["npx", "wrangler", "dev", "--port", "8787", "--local"]

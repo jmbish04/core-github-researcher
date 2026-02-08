@@ -3,16 +3,18 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-02-02",
   "compatibility_flags": ["nodejs_compat"],
-  "vars": {
-    "GITHUB_TOKEN": "",
-    "OPENAI_API_KEY": ""
-  },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "research-db",
       "database_id": "",
       "migrations_dir": "migrations"
+    }
+  ],
+  "vectorize": [
+    {
+      "binding": "VECTORIZE",
+      "index_name": "github-repos-index"
     }
   ],
   "durable_objects": {

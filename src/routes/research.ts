@@ -2,6 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import { getAgentByName } from 'agents';
 import type { ResearchAgent } from '../agents/research-agent.js';
+import { getSessionId } from '../lib/session.js';
 
 const taskSchema = z.object({
   id: z.string(),
@@ -249,7 +250,13 @@ export const registerResearchRoutes = (
   app.openapi(startResearchRoute, async (c) => {
     const body = c.req.valid('json');
     const agent = await getAgent(c.env);
-    const result = await (agent as unknown as ResearchAgent).startResearch(body.query, body.language, body.limit);
+    const sessionId = getSessionId(c);
+    const result = await (agent as unknown as ResearchAgent).startResearch(
+      body.query, 
+      body.language, 
+      body.limit,
+      sessionId
+    );
     return c.json(result, 200);
   });
 
