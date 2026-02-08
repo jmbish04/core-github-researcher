@@ -66,37 +66,48 @@ app.get(
 app.get(
   '/mcp',
   upgradeWebSocket((c) => {
-    let transport: WebSocketTransport | undefined;
-    let backlog: string[] = [];
+    let transportPromise: Promise<WebSocketTransport> | undefined;
 
-    const ensureTransport = async (ws: Parameters<typeof handleMcpWebSocket>[0]) => {
-      if (!transport) {
-        transport = await handleMcpWebSocket(ws, c.env);
-        backlog.forEach((message) => transport?.handleMessage(message));
-        backlog = [];
+    const getTransport = (ws: Parameters<typeof handleMcpWebSocket>[0]) => {
+      if (!transportPromise) {
+        transportPromise = handleMcpWebSocket(ws, c.env);
       }
+      return transportPromise;
     };
 
     return {
-      onOpen: async (_event: Event, ws: Parameters<typeof handleMcpWebSocket>[0]) => {
-        await ensureTransport(ws);
+      onOpen: (_event: Event, ws: Parameters<typeof handleMcpWebSocket>[0]) => {
+        getTransport(ws).catch((e) => console.error('Transport initialization failed', e));
       },
       onMessage: async (event: MessageEvent, ws: Parameters<typeof handleMcpWebSocket>[0]) => {
         if (typeof event.data !== 'string') {
           return;
         }
-        if (!transport) {
-          backlog.push(event.data);
-          await ensureTransport(ws);
-          return;
+        try {
+          const transport = await getTransport(ws);
+          transport.handleMessage(event.data);
+        } catch (e) {
+          console.error('Failed to handle message:', e);
+          ws.close(1011, 'Internal Server Error');
         }
-        transport.handleMessage(event.data);
       },
-      onClose: () => {
-        transport?.close().catch(() => undefined);
+      onClose: async () => {
+        if (!transportPromise) return;
+        try {
+          const transport = await transportPromise;
+          await transport.close();
+        } catch {
+          // Ignore if initialization failed
+        }
       },
-      onError: () => {
-        transport?.onerror?.(new Error('WebSocket error'));
+      onError: async () => {
+        if (!transportPromise) return;
+        try {
+          const transport = await transportPromise;
+          transport.onerror?.(new Error('WebSocket error'));
+        } catch {
+          // Ignore if initialization failed
+        }
       },
     };
   })

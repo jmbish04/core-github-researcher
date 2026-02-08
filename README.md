@@ -103,12 +103,23 @@ wrangler dev
 
 ### Secrets & Environment Variables
 
-Set production secrets with Wrangler:
+**IMPORTANT**: Never add sensitive values like `GITHUB_TOKEN` or `OPENAI_API_KEY` to `wrangler.jsonc` under the `[vars]` section. These values are not encrypted and can be accidentally committed to source control.
+
+For **local development**, create a `.dev.vars` file (already in `.gitignore`):
+
+```bash
+GITHUB_TOKEN=your_github_token
+OPENAI_API_KEY=your_openai_key
+```
+
+For **production deployment**, use Cloudflare's encrypted secrets via Wrangler CLI:
 
 ```bash
 wrangler secret put GITHUB_TOKEN
 wrangler secret put OPENAI_API_KEY
 ```
+
+These secrets will be securely stored and available on the `env` object in your Worker (e.g., `c.env.GITHUB_TOKEN`).
 
 ### Deploy
 
