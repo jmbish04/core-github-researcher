@@ -8,9 +8,10 @@
     "build"
   ],
   "scripts": {
-    "build": "tsc --noEmit",
+    "build": "cd frontend && npm install && npm run build && cd ..",
+    "typecheck": "tsc --noEmit",
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
+    "deploy": "cd frontend && npm install && npm run build && cd .. && wrangler deploy",
     "types": "wrangler types",
     "watch": "tsc --watch",
     "migrate:local": "wrangler d1 migrations apply research-db --local",
